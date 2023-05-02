@@ -64,7 +64,7 @@ class Comment(db.Model):
 ##USER TABLE
 
 
-# db.create_all()
+db.create_all()
 
 def admin_only(f):
     @wraps(f)
