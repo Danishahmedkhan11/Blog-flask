@@ -1,4 +1,4 @@
-from flask import Flask, abort, render_template, redirect, url_for, flash
+from flask import Flask, abort, render_template, redirect, url_for, flash,request
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from datetime import date
@@ -9,6 +9,8 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, cur
 from forms import *
 from flask_gravatar import Gravatar
 from functools import wraps
+import smtplib,requests,os
+from datetime import date
 
 app = Flask(__name__)
 app.app_context().push()
@@ -163,7 +165,20 @@ def about():
 @app.route("/contact")
 # @login_required
 def contact():
-    return render_template("contact.html",isAdmin=current_user)
+@app.route('/contact.html',methods=["POST","GET"])
+def contact():
+    if request.method=='POST':
+        
+        my_gmail=os.environ.get('my_gmail')
+        password=os.environ.get('password')
+
+        with smtplib.SMTP('smtp.gmail.com') as connection:
+            connection.starttls()
+            connection.login(user=my_gmail,password=password)
+            connection.sendmail(from_addr=request.form['email'],to_addrs=my_gmail,msg=f'Subject:{request.form["subject"]}\n\n{request.form["message"]}.\n\nName:{request.form["name"]}\nPhone Number:{request.form["phone"]}')
+        return render_template('contact.html',check=True)
+
+    return render_template("contact.html",check=False,isAdmin=current_user)
 
 
 @app.route("/new-post",methods=["POST","GET"])
