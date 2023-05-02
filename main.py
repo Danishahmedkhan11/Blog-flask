@@ -162,9 +162,7 @@ def about():
     return render_template("about.html",isAdmin=current_user)
 
 
-@app.route("/contact")
-# @login_required
-def contact():
+
 @app.route('/contact.html',methods=["POST","GET"])
 def contact():
     if request.method=='POST':
