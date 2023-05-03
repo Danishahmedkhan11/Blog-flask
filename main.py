@@ -17,14 +17,14 @@ load_dotenv()
 
 app = Flask(__name__)
 app.app_context().push()
-app.config['SECRET_KEY'] =os.environ.get('secret')
+app.config['SECRET_KEY'] ='iaafkoazipzqabjc'
 ckeditor = CKEditor(app)
 Bootstrap(app)
 
 
 
 ##CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] =os.environ.get("SQLALCHEMY_DATABASE_URI")
+app.config['SQLALCHEMY_DATABASE_URI'] ='sqlite:///blog.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager=LoginManager()
