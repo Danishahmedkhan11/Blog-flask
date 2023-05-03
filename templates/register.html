@@ -21,8 +21,18 @@
 
   <div class="container">
     <div class="row">
+
       <div class="col-lg-8 col-md-10 mx-auto">
-       
+        {% with message=get_flashed_messages(with_categories=true) %}
+        {% if message %}
+        {% for category,msg in message %}
+        <p style='color:red'><strong>{{ msg }}</strong></p>
+        
+        {% endfor%}
+        {% endif%}
+    
+        {% endwith %}
+     
        {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
 
       </div>

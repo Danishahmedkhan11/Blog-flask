@@ -23,6 +23,7 @@
         <div class="post-preview">
           <a href="{{ url_for('show_post', post_id=post.id) }}">
             <h2 class="post-title">
+              <img width="40" src="{{url_for('static',filename='img/hand-point.png')}}"/>
               {{post.title}}
             </h2>
             <h3 class="post-subtitle">
@@ -30,12 +31,17 @@
             </h3>
           </a>
           <p class="post-meta">Posted by
-            <a href="#">{{post.author.name}}</a>
+            <strong class="author">{{post.author.name}}</strong>
             on {{post.date}}
 
-            {%  if isAdmin.id==1 %}
-            <a href="{{url_for('delete_post', post_id=post.id) }}">✘</a>
+           
+            {%   if isAdmin.id==post.author_id %}
+          
+            <a style="display: inline-flex; align-items: center;" href="{{url_for('delete_post', post_id=post.id) }}">
+              <img width="15" src="{{ url_for('static',filename='img/delete.png') }}">
+            </a>
             {% endif %}
+
           </p>
         </div>
         <hr>
@@ -43,11 +49,12 @@
 
 
         <!-- New Post -->
-        {%   if isAdmin.id==1%}
+        {%   if isAdmin.is_authenticated %}
         <div class="clearfix">
           <a class="btn btn-primary float-right" href="{{url_for('add_new_post')}}">Create New Post</a>
         </div>
         {% endif %}
+       
       </div>
     </div>
   </div>

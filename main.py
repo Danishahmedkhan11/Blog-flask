@@ -10,16 +10,21 @@ from forms import *
 from flask_gravatar import Gravatar
 from functools import wraps
 import smtplib,requests,os
+from dotenv import load_dotenv
 from datetime import date
+
+load_dotenv()
 
 app = Flask(__name__)
 app.app_context().push()
-app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+app.config['SECRET_KEY'] =os.environ.get('secret')
 ckeditor = CKEditor(app)
 Bootstrap(app)
 
+
+
 ##CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
+app.config['SQLALCHEMY_DATABASE_URI'] =os.environ.get("database_uri")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager=LoginManager()
@@ -32,7 +37,7 @@ gravatar = Gravatar(app, size=100, rating='g', default='retro', force_default=Fa
 class User(UserMixin,db.Model):
     __tablename__ = "users"
     id=db.Column(db.Integer,primary_key=True)
-    email=db.Column(db.String(250),unique=False,nullable=False)
+    email=db.Column(db.String(250),unique=True,nullable=False)
     password=db.Column(db.String(250),nullable=False)
     name=db.Column(db.String(250),nullable=False)
     posts = relationship("BlogPost", back_populates="author")
@@ -43,6 +48,7 @@ class BlogPost(db.Model):
     __tablename__ = "blog_posts"
     id = db.Column(db.Integer,primary_key=True)
     author_id=db.Column(db.Integer,db.ForeignKey("users.id"))
+
     author = relationship("User", back_populates="posts")
     title = db.Column(db.String(250), unique=True, nullable=False)
     subtitle = db.Column(db.String(250), nullable=False)
@@ -67,12 +73,14 @@ class Comment(db.Model):
 db.create_all()
 
 def admin_only(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if current_user.id != 1:
+
+    def decorated_function(post_id):
+        blog=BlogPost.query.get(post_id)
+     
+        if current_user.id != blog.author_id:
             return abort(403)
         else:
-            return f(*args, **kwargs)
+            return f(post_id)
     return decorated_function
 
 
@@ -86,8 +94,10 @@ def login_user_callback(user_id):
 # @login_required
 def get_all_posts():
     posts = BlogPost.query.all()
+    print(current_user)
     return render_template("index.html",all_posts=posts,isAdmin=current_user)
     
+
 @app.route('/register',methods=['POST','GET'])
 def register():
     user=RegisterForm()
@@ -96,14 +106,21 @@ def register():
         if User.query.filter_by(email=user.email.data).first():
             flash('Email already registered.Log in instead')
             return redirect(url_for('login'))
+        print(user.password.data)
+        print(user.confirm_password.data)
 
-        encrypt_password=generate_password_hash(user.password.data,method="pbkdf2:sha256",salt_length=8)
-        new_user=User(email=user.email.data,
+        if user.password.data == user.confirm_password.data:
+            encrypt_password=generate_password_hash(user.password.data,method="pbkdf2:sha256",salt_length=8)
+            new_user=User(email=user.email.data,
                       password=encrypt_password,
                       name=user.name.data)
-        db.session.add(new_user)
-        db.session.commit()
-        login_user(new_user)
+            db.session.add(new_user)
+            db.session.commit()
+            login_user(new_user)
+            return redirect(url_for('get_all_posts'))
+        
+        flash('Password must be matched same as confirm password')
+            
     return render_template("register.html",form=user,isAdmin=current_user)
 
 
@@ -133,7 +150,6 @@ def logout():
 
 
 @app.route("/post/<int:post_id>",methods=['POST',"GET"])
-# @login_required
 def show_post(post_id):
     requested_post = BlogPost.query.get(post_id)
     comment=CommentForm()
@@ -144,43 +160,46 @@ def show_post(post_id):
             flash("You need login or register to commit")
             return redirect(url_for('login'))
         
-        else:
-            new_comment=Comment(
-            text=comment.comment.data,
-            post_id=post_id)
-            
-            db.session.add(new_comment)
-            db.session.commit()
+        new_comment=Comment(
+        text=comment.comment.data,
+        post_id=post_id,
+        author_id=current_user.id,
+        )
 
-    return render_template("post.html",form=comment, post=requested_post,isAdmin=current_user)
+        db.session.add(new_comment)
+        db.session.commit()
+
+    return render_template("post.html",form=comment,post=requested_post,isAdmin=current_user)
   
 
 
 @app.route("/about")
-# @login_required
 def about():
     return render_template("about.html",isAdmin=current_user)
 
 
 
-@app.route('/contact.html',methods=["POST","GET"])
+@app.route('/contact',methods=["POST","GET"])
 def contact():
     if request.method=='POST':
+        if not current_user.is_authenticated:
+            flash("You need login or register to send your message")
+            return redirect(url_for('login'))
         
         my_gmail=os.environ.get('my_gmail')
         password=os.environ.get('password')
-
+   
         with smtplib.SMTP('smtp.gmail.com') as connection:
             connection.starttls()
             connection.login(user=my_gmail,password=password)
-            connection.sendmail(from_addr=request.form['email'],to_addrs=my_gmail,msg=f'Subject:{request.form["subject"]}\n\n{request.form["message"]}.\n\nName:{request.form["name"]}\nPhone Number:{request.form["phone"]}')
-        return render_template('contact.html',check=True)
+            connection.sendmail(from_addr=request.form['email'],to_addrs=my_gmail,msg=f'Subject:{request.form["subject"]}\n\n{request.form["message"]}.\n\nName: {request.form["name"]}\nPhone Number: {request.form["phone"]}\nGmail: {request.form["email"]}')
+        return render_template('contact.html',check=True,isAdmin=current_user)
 
     return render_template("contact.html",check=False,isAdmin=current_user)
 
 
 @app.route("/new-post",methods=["POST","GET"])
-@admin_only
+@login_required
 def add_new_post():
     form = CreatePostForm()
     if form.validate_on_submit():
@@ -199,8 +218,8 @@ def add_new_post():
     return render_template("make-post.html",is_edit=False, form=form,isAdmin=current_user)
 
 
-@app.route("/edit-post/<int:post_id>",methods=['POST','GET'])
-# @login_required
+@app.route("/edit-post/<int:post_id>", endpoint='edit_post' ,methods=['POST','GET'])
+@login_required
 @admin_only
 def edit_post(post_id):
     post = BlogPost.query.get(post_id)
@@ -223,8 +242,8 @@ def edit_post(post_id):
     return render_template("make-post.html",is_edit=True, form=edit_form,isAdmin=current_user)
 
 
-@app.route("/delete/<int:post_id>")
-# @login_required
+@app.route("/delete/<int:post_id>",endpoint='delete_post')
+@login_required
 @admin_only
 def delete_post(post_id):
     post_to_delete = BlogPost.query.get(post_id)
