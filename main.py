@@ -12,6 +12,7 @@ from functools import wraps
 import smtplib,requests,os
 from dotenv import load_dotenv
 from datetime import date
+from flask_migrate import Migrate
 
 load_dotenv()
 
@@ -27,6 +28,7 @@ Bootstrap(app)
 app.config['SQLALCHEMY_DATABASE_URI'] =os.environ.get('DATABASE_URL','sqlite:///blog.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 login_manager=LoginManager()
 login_manager.init_app(app)
 
